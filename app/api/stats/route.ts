@@ -6,6 +6,6 @@ export async function GET() {
     const stats = await dbGetOrderStats();
     return NextResponse.json(stats);
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

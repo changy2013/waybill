@@ -1,5 +1,7 @@
+import type { SystemField } from './types';
+
 // 系统标准字段定义
-export const SYSTEM_FIELDS = [
+export const SYSTEM_FIELDS: SystemField[] = [
   { key: 'refCode', label: '外部编码', required: false, description: '外部系统订单唯一编号，用于去重' },
   { key: 'senderName', label: '发件人姓名', required: true, description: '寄件人姓名' },
   { key: 'senderPhone', label: '发件人电话', required: true, description: '寄件人联系方式' },
@@ -14,10 +16,10 @@ export const SYSTEM_FIELDS = [
 ];
 
 // 温层可选值
-export const TEMP_ZONE_OPTIONS = ['常温', '冷藏', '冷冻'];
+export const TEMP_ZONE_OPTIONS: string[] = ['常温', '冷藏', '冷冻'];
 
 // 智能映射关键词词典（基于实际模板分析）
-export const MAPPING_DICTIONARY = {
+export const MAPPING_DICTIONARY: Record<string, string[]> = {
   refCode: ['外部编码', '外部订单号', '客户单号', 'ref code', 'ref', '订单号', '编码', '单号'],
   senderName: ['发件人姓名', '发件人', '发货人', '寄件人', 'sender', '寄件人姓名'],
   senderPhone: ['发件人电话', '发件电话', '发货电话', '寄件电话', 'sender tel', '寄件人手机', '发件手机'],
@@ -32,7 +34,7 @@ export const MAPPING_DICTIONARY = {
 };
 
 // 付款方式（备用）
-export const PAYMENT_METHODS = ['寄付', '到付', '月结'];
+export const PAYMENT_METHODS: string[] = ['寄付', '到付', '月结'];
 
 // DB 名称
 export const DB_NAME = 'waybill_db';

@@ -2,15 +2,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Upload, FileSpreadsheet, History, Package, TrendingUp, Layers } from 'lucide-react';
+import type { OrderStats } from '@/lib/types';
 
 export default function HomePage() {
-  const [stats, setStats] = useState({ totalOrders: 0, todayOrders: 0, totalBatches: 0 });
+  const [stats, setStats] = useState<OrderStats>({ totalOrders: 0, todayOrders: 0, totalBatches: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/stats')
       .then(r => r.json())
-      .then(data => setStats(data))
+      .then((data: OrderStats) => setStats(data))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

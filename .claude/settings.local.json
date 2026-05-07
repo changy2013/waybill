@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth status)",
+      "Bash(gh repo create waybill --public --source=. --remote=origin --push)",
+      "Bash(git remote add origin https://github.com/changy2013/waybill.git)",
+      "Bash(git push -u origin main)",
+      "Bash(git remote set-url origin https://github.com/changy2013/waybill.git)",
+      "Bash(vercel --version)",
+      "Bash(vercel whoami)",
+      "Bash(vercel --yes)",
+      "Bash(vercel env add DATABASE_URL production 2)",
+      "Bash(1:*)",
+      "Bash(vercel --prod)",
+      "Bash(npm install @neondatabase/serverless --save)",
+      "Bash(npm run build)",
+      "Bash(git add app/ lib/ components/)",
+      "Bash(git push origin main)",
+      "Bash(node -e \":*)",
+      "Bash(node -e \"const {neon} = require\\(''@neondatabase/serverless''\\); const s = neon\\(''postgresql://x:y@z/db''\\); console.log\\(typeof s.query\\);\")",
+      "Bash(curl -s \"https://waybill-gold.vercel.app/api/orders?page=1&pageSize=5\")",
+      "Bash(curl -sv \"https://waybill-gold.vercel.app/api/orders?page=1&pageSize=5\")",
+      "Bash(curl -s --http1.1 \"https://waybill-gold.vercel.app/api/orders?page=1&pageSize=5\")",
+      "Bash(vercel env ls)",
+      "Bash(vercel env rm DATABASE_URL production --yes)",
+      "Bash(vercel env add DATABASE_URL production)"
+    ]
+  }
+}

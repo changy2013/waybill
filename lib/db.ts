@@ -1,15 +1,16 @@
-import { neon } from '@neondatabase/serverless';
+import { neon, NeonQueryFunction } from '@neondatabase/serverless';
+import type { Order, Template, OrderFilters, PaginatedResult, OrderStats } from './types';
 
-let sql = null;
+let sql: NeonQueryFunction<false, false> | null = null;
 
-function getSQL() {
+function getSQL(): NeonQueryFunction<false, false> {
   if (!sql) {
-    sql = neon(process.env.DATABASE_URL);
+    sql = neon(process.env.DATABASE_URL!);
   }
   return sql;
 }
 
-export async function initDB() {
+export async function initDB(): Promise<void> {
   const sql = getSQL();
   await sql`
     CREATE TABLE IF NOT EXISTS orders (
@@ -47,9 +48,13 @@ export async function initDB() {
 
 // ==================== Orders ====================
 
-export async function dbSaveOrders(orders, batchId, onProgress) {
+export async function dbSaveOrders(
+  orders: Order[],
+  batchId: string,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
   const { neon: neonRaw } = await import('@neondatabase/serverless');
-  const sqlRaw = neonRaw(process.env.DATABASE_URL);
+  const sqlRaw = neonRaw(process.env.DATABASE_URL!);
   await initDB();
   const now = new Date().toISOString();
 
@@ -57,7 +62,7 @@ export async function dbSaveOrders(orders, batchId, onProgress) {
   const CHUNK = 100;
   for (let start = 0; start < orders.length; start += CHUNK) {
     const chunk = orders.slice(start, start + CHUNK);
-    const params = [];
+    const params: unknown[] = [];
     const valueClauses = chunk.map((order) => {
       const base = params.length;
       params.push(
@@ -87,13 +92,17 @@ export async function dbSaveOrders(orders, batchId, onProgress) {
   }
 }
 
-export async function dbGetOrdersPaginated(page = 1, pageSize = 20, filters = {}) {
+export async function dbGetOrdersPaginated(
+  page = 1,
+  pageSize = 20,
+  filters: OrderFilters = {},
+): Promise<PaginatedResult> {
   const { neon: neonRaw } = await import('@neondatabase/serverless');
-  const sqlRaw = neonRaw(process.env.DATABASE_URL);
+  const sqlRaw = neonRaw(process.env.DATABASE_URL!);
   await initDB();
 
-  const conditions = [];
-  const params = [];
+  const conditions: string[] = [];
+  const params: unknown[] = [];
 
   if (filters.refCode) {
     params.push(`%${filters.refCode}%`);
@@ -119,51 +128,51 @@ export async function dbGetOrdersPaginated(page = 1, pageSize = 20, filters = {}
   const countRows = await sqlRaw.query(
     `SELECT COUNT(*) as total FROM orders ${where}`,
     params
-  );
+  ) as Array<{ total: string }>;
   const total = parseInt(countRows[0].total, 10);
 
   const dataRows = await sqlRaw.query(
     `SELECT * FROM orders ${where} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
     [...params, pageSize, offset]
-  );
+  ) as Array<Record<string, unknown>>;
 
-  const data = dataRows.map(row => ({
-    id: row.id,
-    batchId: row.batch_id,
-    refCode: row.ref_code,
-    senderName: row.sender_name,
-    senderPhone: row.sender_phone,
-    senderAddress: row.sender_address,
-    receiverName: row.receiver_name,
-    receiverPhone: row.receiver_phone,
-    receiverAddress: row.receiver_address,
-    weight: row.weight,
-    itemQuantity: row.item_quantity,
-    tempZone: row.temp_zone,
-    remark: row.remark,
-    status: row.status,
-    createdAt: row.created_at,
+  const data: Order[] = dataRows.map(row => ({
+    id: row.id as number,
+    batchId: row.batch_id as string,
+    refCode: row.ref_code as string,
+    senderName: row.sender_name as string,
+    senderPhone: row.sender_phone as string,
+    senderAddress: row.sender_address as string,
+    receiverName: row.receiver_name as string,
+    receiverPhone: row.receiver_phone as string,
+    receiverAddress: row.receiver_address as string,
+    weight: row.weight as number,
+    itemQuantity: row.item_quantity as number,
+    tempZone: row.temp_zone as string,
+    remark: row.remark as string,
+    status: row.status as string,
+    createdAt: row.created_at as string,
   }));
 
   return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
-export async function dbGetAllRefCodes() {
+export async function dbGetAllRefCodes(): Promise<string[]> {
   const sql = getSQL();
   await initDB();
-  const result = await sql`SELECT ref_code FROM orders WHERE ref_code IS NOT NULL`;
+  const result = await sql`SELECT ref_code FROM orders WHERE ref_code IS NOT NULL` as Array<{ ref_code: string }>;
   return result.map(r => r.ref_code);
 }
 
-export async function dbGetOrderStats() {
+export async function dbGetOrderStats(): Promise<OrderStats> {
   const sql = getSQL();
   await initDB();
   const today = new Date().toISOString().split('T')[0];
 
   const [totalResult, todayResult, batchResult] = await Promise.all([
-    sql`SELECT COUNT(*) as count FROM orders`,
-    sql`SELECT COUNT(*) as count FROM orders WHERE created_at >= ${today}::date`,
-    sql`SELECT COUNT(DISTINCT batch_id) as count FROM orders`,
+    sql`SELECT COUNT(*) as count FROM orders` as unknown as Promise<Array<{ count: string }>>,
+    sql`SELECT COUNT(*) as count FROM orders WHERE created_at >= ${today}::date` as unknown as Promise<Array<{ count: string }>>,
+    sql`SELECT COUNT(DISTINCT batch_id) as count FROM orders` as unknown as Promise<Array<{ count: string }>>,
   ]);
 
   return {
@@ -175,37 +184,44 @@ export async function dbGetOrderStats() {
 
 // ==================== Templates ====================
 
-export async function dbSaveTemplate(name, headers, mapping) {
+export async function dbSaveTemplate(
+  name: string,
+  headers: string[],
+  mapping: Record<string, string>,
+): Promise<number> {
   const sql = getSQL();
   await initDB();
   const result = await sql`
     INSERT INTO templates (name, headers, mapping)
     VALUES (${name}, ${JSON.stringify(headers)}, ${JSON.stringify(mapping)})
     RETURNING id
-  `;
+  ` as Array<{ id: number }>;
   return result[0].id;
 }
 
-export async function dbGetAllTemplates() {
+export async function dbGetAllTemplates(): Promise<Template[]> {
   const sql = getSQL();
   await initDB();
-  const rows = await sql`SELECT * FROM templates ORDER BY created_at DESC`;
+  const rows = await sql`SELECT * FROM templates ORDER BY created_at DESC` as Array<Record<string, unknown>>;
   return rows.map(r => ({
-    id: r.id,
-    name: r.name,
-    headers: r.headers,
-    mapping: r.mapping,
-    createdAt: r.created_at,
+    id: r.id as number,
+    name: r.name as string,
+    headers: r.headers as string[],
+    mapping: r.mapping as Record<string, string>,
+    createdAt: r.created_at as string,
   }));
 }
 
-export async function dbDeleteTemplate(id) {
+export async function dbDeleteTemplate(id: number): Promise<void> {
   const sql = getSQL();
   await initDB();
   await sql`DELETE FROM templates WHERE id = ${id}`;
 }
 
-export async function dbUpdateTemplate(id, updates) {
+export async function dbUpdateTemplate(
+  id: number,
+  updates: Partial<Pick<Template, 'name' | 'headers' | 'mapping'>>,
+): Promise<void> {
   const sql = getSQL();
   await initDB();
   if (updates.name !== undefined) {

@@ -3,68 +3,72 @@
 import { UploadCloud } from 'lucide-react';
 import { useState, useRef } from 'react';
 
-export default function FileUploader({ onFileSelect }) {
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef(null);
+interface FileUploaderProps {
+  onFileSelect: (file: File) => void;
+}
 
-  const handleDragOver = (e) => {
+export default function FileUploader({ onFileSelect }: FileUploaderProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragLeave = (e) => {
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       validateAndSelect(file);
     }
   };
 
-  const handleFileInput = (e) => {
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       validateAndSelect(file);
     }
   };
 
-  const validateAndSelect = (file) => {
+  const validateAndSelect = (file: File) => {
     const validTypes = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
       'application/vnd.ms-excel', // .xls
-      'text/csv' // .csv
+      'text/csv', // .csv
     ];
-    
+
     if (!validTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls|csv)$/i)) {
       alert('请上传有效的 Excel 或 CSV 文件格式（.xlsx, .xls, .csv）');
       return;
     }
-    
+
     onFileSelect(file);
   };
 
   return (
-    <div 
+    <div
       className={`file-uploader ${isDragging ? 'dragover' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onClick={() => fileInputRef.current?.click()}
     >
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileInput} 
-        accept=".xlsx, .xls, .csv" 
-        style={{ display: 'none' }} 
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileInput}
+        accept=".xlsx, .xls, .csv"
+        style={{ display: 'none' }}
       />
-      
+
       <div className="upload-icon">
         <UploadCloud size={32} />
       </div>

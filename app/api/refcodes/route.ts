@@ -6,6 +6,6 @@ export async function GET() {
     const refCodes = await dbGetAllRefCodes();
     return NextResponse.json(refCodes);
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }

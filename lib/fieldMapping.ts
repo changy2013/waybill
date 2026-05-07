@@ -1,19 +1,21 @@
 import { MAPPING_DICTIONARY, SYSTEM_FIELDS } from './constants';
+import type { Order, Template, FieldMapping, MappingScore } from './types';
 
 /**
  * Auto-map Excel headers to system fields using fuzzy keyword matching
  * Returns: { excelHeader: systemFieldKey, ... }
  */
-export function autoMapFields(excelHeaders) {
-  const mapping = {};
-  const usedSystemFields = new Set();
+export function autoMapFields(excelHeaders: string[]): FieldMapping {
+  const mapping: FieldMapping = {};
+  const usedSystemFields = new Set<string>();
 
   // Normalize header for comparison
-  const normalize = (str) => String(str).toLowerCase().replace(/[\s\(\)（）\/\\,，\.。_\-]/g, '');
+  const normalize = (str: string) =>
+    String(str).toLowerCase().replace(/[\s\(\)（）\/\\,，\.。_\-]/g, '');
 
   excelHeaders.forEach(header => {
     const normalizedHeader = normalize(header);
-    let bestMatch = null;
+    let bestMatch: string | null = null;
     let bestScore = 0;
 
     Object.entries(MAPPING_DICTIONARY).forEach(([fieldKey, keywords]) => {
@@ -55,16 +57,16 @@ export function autoMapFields(excelHeaders) {
 /**
  * Apply field mapping to transform raw rows into system-field rows
  */
-export function applyMapping(rows, mapping) {
+export function applyMapping(rows: Record<string, unknown>[], mapping: FieldMapping): Order[] {
   return rows.map((row, index) => {
-    const mapped = { _rowIndex: index + 1 };
+    const mapped: Order = { _rowIndex: index + 1, receiverName: '', receiverPhone: '', receiverAddress: '' };
     SYSTEM_FIELDS.forEach(field => {
-      mapped[field.key] = '';
+      (mapped as Record<string, unknown>)[field.key] = '';
     });
 
     Object.entries(mapping).forEach(([excelHeader, systemKey]) => {
       if (systemKey && row[excelHeader] !== undefined) {
-        mapped[systemKey] = String(row[excelHeader]).trim();
+        (mapped as Record<string, unknown>)[systemKey] = String(row[excelHeader]).trim();
       }
     });
 
@@ -75,7 +77,7 @@ export function applyMapping(rows, mapping) {
 /**
  * Calculate mapping completeness score
  */
-export function getMappingScore(mapping) {
+export function getMappingScore(mapping: FieldMapping): MappingScore {
   const requiredFields = SYSTEM_FIELDS.filter(f => f.required);
   const mappedSystemKeys = new Set(Object.values(mapping).filter(Boolean));
   const mappedRequired = requiredFields.filter(f => mappedSystemKeys.has(f.key));
@@ -92,18 +94,24 @@ export function getMappingScore(mapping) {
 /**
  * Serialize mapping for storage (only excelHeader -> systemFieldKey pairs)
  */
-export function serializeMapping(mapping, excelHeaders) {
+export function serializeMapping(
+  mapping: FieldMapping,
+  excelHeaders: string[],
+): { headers: string[]; mapping: FieldMapping } {
   return { headers: excelHeaders, mapping: { ...mapping } };
 }
 
 /**
  * Try to find a saved mapping that matches the current Excel headers
  */
-export function findMatchingTemplate(excelHeaders, savedTemplates) {
-  const normalize = (h) => String(h).toLowerCase().trim();
+export function findMatchingTemplate(
+  excelHeaders: string[],
+  savedTemplates: Template[],
+): Template | null {
+  const normalize = (h: string) => String(h).toLowerCase().trim();
   const currentSet = new Set(excelHeaders.map(normalize));
 
-  let bestMatch = null;
+  let bestMatch: Template | null = null;
   let bestScore = 0;
 
   savedTemplates.forEach(template => {

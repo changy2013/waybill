@@ -2,13 +2,18 @@
 
 import { Check } from 'lucide-react';
 
-export default function StepWizard({ steps, currentStep }) {
+interface StepWizardProps {
+  steps: string[];
+  currentStep: number;
+}
+
+export default function StepWizard({ steps, currentStep }: StepWizardProps) {
   return (
     <div className="step-wizard">
       {steps.map((step, index) => {
         const isCompleted = index < currentStep;
         const isActive = index === currentStep;
-        
+
         return (
           <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
             <div className={`step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}>
@@ -17,7 +22,7 @@ export default function StepWizard({ steps, currentStep }) {
               </div>
               <div className="step-label">{step}</div>
             </div>
-            
+
             {index < steps.length - 1 && (
               <div className={`step-connector ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}`} />
             )}

@@ -9,42 +9,60 @@ import { validateAllRows, checkDuplicatesAgainstDB, getValidationSummary, getCel
 import { saveOrders, saveTemplate, getAllTemplates, getAllRefCodes } from '@/lib/storage';
 import { SYSTEM_FIELDS, TEMP_ZONE_OPTIONS } from '@/lib/constants';
 import { AlertCircle, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Save, Download } from 'lucide-react';
+import type { ParsedResult, Order, Template, ValidationError, FieldMapping } from '@/lib/types';
 
 const STEPS = ['上传文件', '字段映射', '数据预览', '提交结果'];
+
+interface EditingCell {
+  ri: number;
+  key: string;
+}
+
+interface Toast {
+  msg: string;
+  type: 'success' | 'error';
+}
+
+interface SubmitResult {
+  success: boolean;
+  count?: number;
+  batchId?: string;
+  error?: string;
+}
 
 export default function ImportPage() {
   const [step, setStep] = useState(0);
 
   // Step 0
-  const [parsedResult, setParsedResult] = useState(null);
+  const [parsedResult, setParsedResult] = useState<ParsedResult | null>(null);
   const [selectedSheet, setSelectedSheet] = useState('');
   const [parseError, setParseError] = useState('');
   const [parsing, setParsing] = useState(false);
 
   // Step 1
-  const [mapping, setMapping] = useState({});
-  const [templates, setTemplates] = useState([]);
+  const [mapping, setMapping] = useState<FieldMapping>({});
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
   // Step 2
-  const [mappedRows, setMappedRows] = useState([]);
-  const [validationErrors, setValidationErrors] = useState([]);
-  const [editingCell, setEditingCell] = useState(null);
+  const [mappedRows, setMappedRows] = useState<Order[]>([]);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [expandedErrors, setExpandedErrors] = useState(false);
 
   // Step 3
   const [submitting, setSubmitting] = useState(false);
-  const [submitResult, setSubmitResult] = useState(null);
+  const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
   const [submitProgress, setSubmitProgress] = useState({ done: 0, total: 0 });
 
   // Parse progress
   const [parseProgress, setParseProgress] = useState({ pct: 0, rows: 0 });
 
   // Toast
-  const [toast, setToast] = useState(null);
-  const showToast = (msg, type = 'success') => {
+  const [toast, setToast] = useState<Toast | null>(null);
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
@@ -53,7 +71,7 @@ export default function ImportPage() {
   const excelHeaders = currentSheet?.headers || [];
 
   // ---- Step 0: File upload ----
-  const handleFileSelect = useCallback(async (file) => {
+  const handleFileSelect = useCallback(async (file: File) => {
     setParseError('');
     setParsing(true);
     setParseProgress({ pct: 0, rows: 0 });
@@ -65,17 +83,17 @@ export default function ImportPage() {
       setParsedResult(result);
       setSelectedSheet(best);
     } catch (err) {
-      setParseError(err.message);
+      setParseError((err as Error).message);
     } finally {
       setParsing(false);
     }
   }, []);
 
-  const handleSheetSelect = (name) => setSelectedSheet(name);
+  const handleSheetSelect = (name: string) => setSelectedSheet(name);
 
   const goToMapping = async () => {
-    const headers = parsedResult.sheets[selectedSheet]?.headers || [];
-    const totalRows = parsedResult.sheets[selectedSheet]?.totalRows || 0;
+    const headers = parsedResult!.sheets[selectedSheet]?.headers || [];
+    const totalRows = parsedResult!.sheets[selectedSheet]?.totalRows || 0;
     if (headers.length === 0 || totalRows === 0) {
       setParseError('所选 Sheet 中没有有效数据，请检查文件内容是否为空');
       return;
@@ -91,7 +109,7 @@ export default function ImportPage() {
   };
 
   // ---- Step 1: Field mapping ----
-  const handleMappingChange = (excelHeader, systemKey) => {
+  const handleMappingChange = (excelHeader: string, systemKey: string) => {
     setMapping(prev => {
       const next = { ...prev };
       // Remove any existing mapping to the same systemKey
@@ -107,7 +125,7 @@ export default function ImportPage() {
     });
   };
 
-  const applyTemplate = (template) => {
+  const applyTemplate = (template: Template) => {
     setMapping({ ...template.mapping });
   };
 
@@ -120,7 +138,7 @@ export default function ImportPage() {
       setTemplateName('');
       showToast('映射方案已保存');
     } catch (err) {
-      showToast('保存失败: ' + err.message, 'error');
+      showToast('保存失败: ' + (err as Error).message, 'error');
     } finally {
       setSavingTemplate(false);
     }
@@ -147,7 +165,7 @@ export default function ImportPage() {
   };
 
   // ---- Step 2: Preview & edit ----
-  const handleCellEdit = (rowIndex, fieldKey, value) => {
+  const handleCellEdit = (rowIndex: number, fieldKey: string, value: string) => {
     setMappedRows(prev => {
       const next = [...prev];
       next[rowIndex] = { ...next[rowIndex], [fieldKey]: value };
@@ -157,7 +175,7 @@ export default function ImportPage() {
     });
   };
 
-  const handleCellKeyDown = (e, rowIndex, fieldIndex) => {
+  const handleCellKeyDown = (e: React.KeyboardEvent, rowIndex: number, fieldIndex: number) => {
     if (e.key === 'Tab' || e.key === 'Enter') {
       e.preventDefault();
       const fields = SYSTEM_FIELDS;
@@ -180,8 +198,8 @@ export default function ImportPage() {
   const handleExport = () => {
     const headers = SYSTEM_FIELDS.map(f => f.label);
     const rows = mappedRows.map(row => {
-      const r = {};
-      SYSTEM_FIELDS.forEach(f => { r[f.label] = row[f.key] || ''; });
+      const r: Record<string, unknown> = {};
+      SYSTEM_FIELDS.forEach(f => { r[f.label] = (row as Record<string, unknown>)[f.key] || ''; });
       return r;
     });
     exportToExcel(headers, rows, '运单数据_预览.xlsx');
@@ -203,7 +221,7 @@ export default function ImportPage() {
       }
       setSubmitResult({ success: true, count: mappedRows.length, batchId });
     } catch (err) {
-      setSubmitResult({ success: false, error: err.message });
+      setSubmitResult({ success: false, error: (err as Error).message });
     } finally {
       setSubmitting(false);
       setStep(3);
@@ -460,7 +478,7 @@ export default function ImportPage() {
                                 <select
                                   className="input"
                                   style={{ minWidth: 80 }}
-                                  value={row[f.key] || ''}
+                                  value={(row as Record<string, unknown>)[f.key] as string || ''}
                                   autoFocus
                                   onChange={e => handleCellEdit(ri, f.key, e.target.value)}
                                   onBlur={() => setEditingCell(null)}
@@ -473,7 +491,7 @@ export default function ImportPage() {
                                 <input
                                   className="input"
                                   style={{ minWidth: 100 }}
-                                  value={row[f.key] || ''}
+                                  value={(row as Record<string, unknown>)[f.key] as string || ''}
                                   autoFocus
                                   onChange={e => handleCellEdit(ri, f.key, e.target.value)}
                                   onBlur={() => setEditingCell(null)}
@@ -481,7 +499,7 @@ export default function ImportPage() {
                                 />
                               )
                             ) : (
-                              <span>{row[f.key] || <span style={{ opacity: 0.3 }}>—</span>}</span>
+                              <span>{(row as Record<string, unknown>)[f.key] as string || <span style={{ opacity: 0.3 }}>—</span>}</span>
                             )}
                           </td>
                         );

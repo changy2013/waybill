@@ -1,8 +1,9 @@
 // Client-side storage layer — delegates to API routes backed by PostgreSQL
+import type { Order, Template, PaginatedResult, OrderFilters, OrderStats } from './types';
 
 // ==================== Orders ====================
 
-export async function saveOrders(orders, batchId) {
+export async function saveOrders(orders: Order[], batchId: string): Promise<{ success: boolean; count: number }> {
   const res = await fetch('/api/orders', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -15,8 +16,12 @@ export async function saveOrders(orders, batchId) {
   return res.json();
 }
 
-export async function getOrdersPaginated(page = 1, pageSize = 20, filters = {}) {
-  const params = new URLSearchParams({ page, pageSize });
+export async function getOrdersPaginated(
+  page = 1,
+  pageSize = 20,
+  filters: OrderFilters = {},
+): Promise<PaginatedResult> {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (filters.refCode) params.set('refCode', filters.refCode);
   if (filters.receiverName) params.set('receiverName', filters.receiverName);
   if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
@@ -30,13 +35,13 @@ export async function getOrdersPaginated(page = 1, pageSize = 20, filters = {}) 
   return res.json();
 }
 
-export async function getAllRefCodes() {
+export async function getAllRefCodes(): Promise<string[]> {
   const res = await fetch('/api/refcodes');
   if (!res.ok) return [];
   return res.json();
 }
 
-export async function getOrderStats() {
+export async function getOrderStats(): Promise<OrderStats> {
   const res = await fetch('/api/stats');
   if (!res.ok) return { totalOrders: 0, todayOrders: 0, totalBatches: 0 };
   return res.json();
@@ -44,7 +49,11 @@ export async function getOrderStats() {
 
 // ==================== Templates ====================
 
-export async function saveTemplate(name, headers, mapping) {
+export async function saveTemplate(
+  name: string,
+  headers: string[],
+  mapping: Record<string, string>,
+): Promise<{ success: boolean; id: number }> {
   const res = await fetch('/api/templates', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -57,13 +66,13 @@ export async function saveTemplate(name, headers, mapping) {
   return res.json();
 }
 
-export async function getAllTemplates() {
+export async function getAllTemplates(): Promise<Template[]> {
   const res = await fetch('/api/templates');
   if (!res.ok) return [];
   return res.json();
 }
 
-export async function deleteTemplate(id) {
+export async function deleteTemplate(id: number): Promise<void> {
   const res = await fetch(`/api/templates/${id}`, { method: 'DELETE' });
   if (!res.ok) {
     const err = await res.json();
@@ -71,7 +80,10 @@ export async function deleteTemplate(id) {
   }
 }
 
-export async function updateTemplate(id, updates) {
+export async function updateTemplate(
+  id: number,
+  updates: Partial<Pick<Template, 'name' | 'headers' | 'mapping'>>,
+): Promise<void> {
   const res = await fetch(`/api/templates/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

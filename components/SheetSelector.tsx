@@ -1,6 +1,20 @@
 'use client';
 
-export default function SheetSelector({ sheetNames, selectedSheet, onSelectSheet, sheetsData }) {
+import type { ParsedResult } from '@/lib/types';
+
+interface SheetSelectorProps {
+  sheetNames: string[];
+  selectedSheet: string;
+  onSelectSheet: (name: string) => void;
+  sheetsData: ParsedResult['sheets'];
+}
+
+export default function SheetSelector({
+  sheetNames,
+  selectedSheet,
+  onSelectSheet,
+  sheetsData,
+}: SheetSelectorProps) {
   if (!sheetNames || sheetNames.length <= 1) return null;
 
   return (

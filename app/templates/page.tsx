@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { getAllTemplates, deleteTemplate, updateTemplate } from '@/lib/storage';
 import { SYSTEM_FIELDS } from '@/lib/constants';
 import { Trash2, Edit2, Check, X } from 'lucide-react';
+import type { Template } from '@/lib/types';
 
 export default function TemplatesPage() {
-  const [templates, setTemplates] = useState([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
 
   const load = async () => {
@@ -24,20 +25,20 @@ export default function TemplatesPage() {
 
   useEffect(() => { load(); }, []);
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: number) => {
     if (!confirm('确认删除该映射方案？')) return;
     await deleteTemplate(id);
     setTemplates(prev => prev.filter(t => t.id !== id));
   };
 
-  const handleRename = async (id) => {
+  const handleRename = async (id: number) => {
     if (!editName.trim()) return;
     await updateTemplate(id, { name: editName.trim() });
     setTemplates(prev => prev.map(t => t.id === id ? { ...t, name: editName.trim() } : t));
     setEditingId(null);
   };
 
-  const fieldLabel = (key) => SYSTEM_FIELDS.find(f => f.key === key)?.label || key;
+  const fieldLabel = (key: string) => SYSTEM_FIELDS.find(f => f.key === key)?.label || key;
 
   return (
     <div className="page-container">

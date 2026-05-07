@@ -3,20 +3,22 @@ import { useEffect, useState, useCallback } from 'react';
 import { getOrdersPaginated } from '@/lib/storage';
 import { SYSTEM_FIELDS } from '@/lib/constants';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import type { Order, OrderFilters } from '@/lib/types';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 export default function HistoryPage() {
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  const [filters, setFilters] = useState({ refCode: '', receiverName: '', dateFrom: '', dateTo: '' });
-  const [pendingFilters, setPendingFilters] = useState({ refCode: '', receiverName: '', dateFrom: '', dateTo: '' });
+  const emptyFilters: OrderFilters = { refCode: '', receiverName: '', dateFrom: '', dateTo: '' };
+  const [filters, setFilters] = useState<OrderFilters>(emptyFilters);
+  const [pendingFilters, setPendingFilters] = useState<OrderFilters>(emptyFilters);
 
-  const load = useCallback(async (p, f) => {
+  const load = useCallback(async (p: number, f: OrderFilters) => {
     setLoading(true);
     try {
       const result = await getOrdersPaginated(p, PAGE_SIZE, f);
@@ -38,9 +40,8 @@ export default function HistoryPage() {
   };
 
   const handleReset = () => {
-    const empty = { refCode: '', receiverName: '', dateFrom: '', dateTo: '' };
-    setPendingFilters(empty);
-    setFilters(empty);
+    setPendingFilters(emptyFilters);
+    setFilters(emptyFilters);
     setPage(1);
   };
 
@@ -118,11 +119,11 @@ export default function HistoryPage() {
                   <tr key={order.id}>
                     <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{order.id}</td>
                     {SYSTEM_FIELDS.map(f => (
-                      <td key={f.key}>{order[f.key] ?? <span style={{ opacity: 0.3 }}>—</span>}</td>
+                      <td key={f.key}>{(order as Record<string, unknown>)[f.key] as string ?? <span style={{ opacity: 0.3 }}>—</span>}</td>
                     ))}
                     <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{order.batchId}</td>
                     <td style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                      {new Date(order.createdAt).toLocaleString('zh-CN')}
+                      {new Date(order.createdAt!).toLocaleString('zh-CN')}
                     </td>
                   </tr>
                 ))}
