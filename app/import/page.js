@@ -61,6 +61,11 @@ export default function ImportPage() {
 
   const goToMapping = async () => {
     const headers = parsedResult.sheets[selectedSheet]?.headers || [];
+    const totalRows = parsedResult.sheets[selectedSheet]?.totalRows || 0;
+    if (headers.length === 0 || totalRows === 0) {
+      setParseError('所选 Sheet 中没有有效数据，请检查文件内容是否为空');
+      return;
+    }
     const autoMap = autoMapFields(headers);
 
     // Try to find a matching saved template
