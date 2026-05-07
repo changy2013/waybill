@@ -110,6 +110,13 @@ export default function ImportPage() {
     const rows = currentSheet?.rows || [];
     const mapped = applyMapping(rows, mapping);
 
+    // Auto-save mapping as template if no existing template matched
+    const matched = findMatchingTemplate(excelHeaders, templates);
+    if (!matched && Object.keys(mapping).length > 0) {
+      const autoName = `自动保存_${excelHeaders.slice(0, 3).join('_')}`;
+      saveTemplate(autoName, excelHeaders, mapping).catch(() => {});
+    }
+
     // Fetch existing refCodes for duplicate check
     const existingRefs = await getAllRefCodes().catch(() => []);
     const errors = validateAllRows(mapped);
