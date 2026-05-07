@@ -1,66 +1,90 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Upload, FileSpreadsheet, History, Package, TrendingUp, Layers } from 'lucide-react';
 
-export default function Home() {
+export default function HomePage() {
+  const [stats, setStats] = useState({ totalOrders: 0, todayOrders: 0, totalBatches: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(r => r.json())
+      .then(data => setStats(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.js file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="page-container">
+      <div className="page-header">
+        <h2 className="page-title">工作台</h2>
+        <p className="page-subtitle">物流智能批量下单系统</p>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+            <Package size={22} />
+          </div>
+          <div className="stat-info">
+            <div className="stat-value">{loading ? '—' : stats.totalOrders.toLocaleString()}</div>
+            <div className="stat-label">累计运单</div>
+          </div>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+            <TrendingUp size={22} />
+          </div>
+          <div className="stat-info">
+            <div className="stat-value">{loading ? '—' : stats.todayOrders.toLocaleString()}</div>
+            <div className="stat-label">今日新增</div>
+          </div>
         </div>
-      </main>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+            <Layers size={22} />
+          </div>
+          <div className="stat-info">
+            <div className="stat-value">{loading ? '—' : stats.totalBatches.toLocaleString()}</div>
+            <div className="stat-label">批次总数</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 className="section-title">快捷入口</h3>
+      <div className="quick-actions">
+        <Link href="/import" className="action-card">
+          <div className="action-icon">
+            <Upload size={28} />
+          </div>
+          <div className="action-content">
+            <div className="action-title">批量导入</div>
+            <div className="action-desc">上传 Excel / CSV，智能识别字段，批量创建运单</div>
+          </div>
+          <div className="action-arrow">→</div>
+        </Link>
+        <Link href="/templates" className="action-card">
+          <div className="action-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6, #a855f7)' }}>
+            <FileSpreadsheet size={28} />
+          </div>
+          <div className="action-content">
+            <div className="action-title">映射方案</div>
+            <div className="action-desc">管理已保存的字段映射模板，快速复用</div>
+          </div>
+          <div className="action-arrow">→</div>
+        </Link>
+        <Link href="/history" className="action-card">
+          <div className="action-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+            <History size={28} />
+          </div>
+          <div className="action-content">
+            <div className="action-title">运单记录</div>
+            <div className="action-desc">查询历史运单，支持按编码、收件人、日期筛选</div>
+          </div>
+          <div className="action-arrow">→</div>
+        </Link>
+      </div>
     </div>
   );
 }
