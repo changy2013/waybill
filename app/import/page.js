@@ -3,13 +3,12 @@ import { useState, useCallback } from 'react';
 import StepWizard from '@/components/StepWizard';
 import FileUploader from '@/components/FileUploader';
 import SheetSelector from '@/components/SheetSelector';
-import { parseExcelFile, detectBestSheet } from '@/lib/excelParser';
+import { parseExcelFile, detectBestSheet, exportToExcel } from '@/lib/excelParser';
 import { autoMapFields, applyMapping, getMappingScore, findMatchingTemplate } from '@/lib/fieldMapping';
 import { validateAllRows, checkDuplicatesAgainstDB, getValidationSummary, getCellErrors } from '@/lib/validation';
 import { saveOrders, saveTemplate, getAllTemplates, getAllRefCodes } from '@/lib/storage';
 import { SYSTEM_FIELDS, TEMP_ZONE_OPTIONS } from '@/lib/constants';
 import { AlertCircle, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Save, Download } from 'lucide-react';
-import { exportToExcel } from '@/lib/excelParser';
 
 const STEPS = ['上传文件', '字段映射', '数据预览', '提交结果'];
 
@@ -38,6 +37,17 @@ export default function ImportPage() {
   // Step 3
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
+  const [submitProgress, setSubmitProgress] = useState({ done: 0, total: 0 });
+
+  // Parse progress
+  const [parseProgress, setParseProgress] = useState({ pct: 0, rows: 0 });
+
+  // Toast
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const currentSheet = parsedResult?.sheets[selectedSheet];
   const excelHeaders = currentSheet?.headers || [];
@@ -46,8 +56,11 @@ export default function ImportPage() {
   const handleFileSelect = useCallback(async (file) => {
     setParseError('');
     setParsing(true);
+    setParseProgress({ pct: 0, rows: 0 });
     try {
-      const result = await parseExcelFile(file);
+      const result = await parseExcelFile(file, (pct, rows) => {
+        setParseProgress({ pct, rows });
+      });
       const best = detectBestSheet(result);
       setParsedResult(result);
       setSelectedSheet(best);
@@ -105,8 +118,9 @@ export default function ImportPage() {
       await saveTemplate(templateName.trim(), excelHeaders, mapping);
       setShowSaveTemplate(false);
       setTemplateName('');
+      showToast('映射方案已保存');
     } catch (err) {
-      alert('保存失败: ' + err.message);
+      showToast('保存失败: ' + err.message, 'error');
     } finally {
       setSavingTemplate(false);
     }
@@ -179,8 +193,14 @@ export default function ImportPage() {
   const handleSubmit = async () => {
     setSubmitting(true);
     const batchId = `batch_${Date.now()}`;
+    const CHUNK = 100;
+    setSubmitProgress({ done: 0, total: mappedRows.length });
     try {
-      await saveOrders(mappedRows, batchId);
+      for (let start = 0; start < mappedRows.length; start += CHUNK) {
+        const chunk = mappedRows.slice(start, start + CHUNK);
+        await saveOrders(chunk, batchId);
+        setSubmitProgress({ done: Math.min(start + CHUNK, mappedRows.length), total: mappedRows.length });
+      }
       setSubmitResult({ success: true, count: mappedRows.length, batchId });
     } catch (err) {
       setSubmitResult({ success: false, error: err.message });
@@ -210,6 +230,19 @@ export default function ImportPage() {
         <p className="page-subtitle">上传 Excel / CSV 文件，智能识别字段，批量创建运单</p>
       </div>
 
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 24, right: 24, zIndex: 9999,
+          padding: '12px 20px', borderRadius: 8, fontSize: 14, fontWeight: 500,
+          background: toast.type === 'error' ? 'var(--error-bg)' : 'var(--success-bg)',
+          color: toast.type === 'error' ? '#fca5a5' : 'var(--success)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+        }}>
+          {toast.msg}
+        </div>
+      )}
+
       <StepWizard steps={STEPS} currentStep={step} />
 
       {/* Step 0: Upload */}
@@ -217,7 +250,17 @@ export default function ImportPage() {
         <div className="card">
           <div className="card-body">
             <FileUploader onFileSelect={handleFileSelect} />
-            {parsing && <p style={{ textAlign: 'center', marginTop: 16, color: 'var(--text-secondary)' }}>解析中...</p>}
+            {parsing && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  <span>解析中...</span>
+                  <span>{parseProgress.rows} 行 · {parseProgress.pct}%</span>
+                </div>
+                <div style={{ height: 6, background: 'var(--bg-input)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${parseProgress.pct}%`, background: 'var(--accent-primary)', borderRadius: 3, transition: 'width 0.2s' }} />
+                </div>
+              </div>
+            )}
             {parseError && (
               <div className="validation-item error" style={{ marginTop: 16 }}>
                 <AlertCircle size={16} /> {parseError}
@@ -450,16 +493,29 @@ export default function ImportPage() {
             </div>
           </div>
 
-          <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary" onClick={() => setStep(1)}>← 返回</button>
-            <button
-              className="btn btn-primary"
-              onClick={handleSubmit}
-              disabled={summary.hasErrors || submitting}
-              title={summary.hasErrors ? '请先修正所有错误' : ''}
-            >
-              {submitting ? '提交中...' : `确认提交 ${mappedRows.length} 条运单`}
-            </button>
+          <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end', flexDirection: 'column', alignItems: 'flex-end' }}>
+            {submitting && (
+              <div style={{ width: '100%', marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  <span>提交中...</span>
+                  <span>{submitProgress.done} / {submitProgress.total} 条 · {submitProgress.total > 0 ? Math.round(submitProgress.done / submitProgress.total * 100) : 0}%</span>
+                </div>
+                <div style={{ height: 6, background: 'var(--bg-input)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${submitProgress.total > 0 ? Math.round(submitProgress.done / submitProgress.total * 100) : 0}%`, background: 'var(--accent-primary)', borderRadius: 3, transition: 'width 0.3s' }} />
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary" onClick={() => setStep(1)}>← 返回</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSubmit}
+                disabled={summary.hasErrors || submitting}
+                title={summary.hasErrors ? '请先修正所有错误' : ''}
+              >
+                {submitting ? '提交中...' : `确认提交 ${mappedRows.length} 条运单`}
+              </button>
+            </div>
           </div>
         </div>
       )}
