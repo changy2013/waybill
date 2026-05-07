@@ -95,7 +95,7 @@ export default function HistoryPage() {
 
       {/* Table */}
       <div className="card">
-        <div className="card-body" style={{ overflowX: 'auto' }}>
+        <div className="card-body" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '65vh' }}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-secondary)' }}>加载中...</div>
           ) : orders.length === 0 ? (

@@ -8,7 +8,8 @@ import { autoMapFields, applyMapping, getMappingScore, findMatchingTemplate } fr
 import { validateAllRows, checkDuplicatesAgainstDB, getValidationSummary, getCellErrors } from '@/lib/validation';
 import { saveOrders, saveTemplate, getAllTemplates, getAllRefCodes } from '@/lib/storage';
 import { SYSTEM_FIELDS, TEMP_ZONE_OPTIONS } from '@/lib/constants';
-import { AlertCircle, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Save, Download } from 'lucide-react';
+import { exportToExcel } from '@/lib/excelParser';
 
 const STEPS = ['上传文件', '字段映射', '数据预览', '提交结果'];
 
@@ -136,12 +137,40 @@ export default function ImportPage() {
     setMappedRows(prev => {
       const next = [...prev];
       next[rowIndex] = { ...next[rowIndex], [fieldKey]: value };
+      // Re-validate with the updated rows immediately (avoid stale closure)
+      setValidationErrors(validateAllRows(next));
       return next;
     });
-    // Re-validate after edit
-    setTimeout(() => {
-      setValidationErrors(validateAllRows(mappedRows));
-    }, 0);
+  };
+
+  const handleCellKeyDown = (e, rowIndex, fieldIndex) => {
+    if (e.key === 'Tab' || e.key === 'Enter') {
+      e.preventDefault();
+      const fields = SYSTEM_FIELDS;
+      let nextRow = rowIndex;
+      let nextField = fieldIndex + 1;
+      if (nextField >= fields.length) {
+        nextField = 0;
+        nextRow = rowIndex + 1;
+      }
+      if (nextRow < mappedRows.length) {
+        setEditingCell({ ri: nextRow, key: fields[nextField].key });
+      } else {
+        setEditingCell(null);
+      }
+    } else if (e.key === 'Escape') {
+      setEditingCell(null);
+    }
+  };
+
+  const handleExport = () => {
+    const headers = SYSTEM_FIELDS.map(f => f.label);
+    const rows = mappedRows.map(row => {
+      const r = {};
+      SYSTEM_FIELDS.forEach(f => { r[f.label] = row[f.key] || ''; });
+      return r;
+    });
+    exportToExcel(headers, rows, '运单数据_预览.xlsx');
   };
 
   const summary = getValidationSummary(validationErrors);
@@ -349,9 +378,14 @@ export default function ImportPage() {
           <div className="card">
             <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
               <h3>数据预览（共 {mappedRows.length} 条）</h3>
-              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>点击单元格可编辑</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>点击单元格可编辑</span>
+                <button className="btn btn-secondary" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Download size={14} /> 导出 xlsx
+                </button>
+              </div>
             </div>
-            <div className="card-body" style={{ overflowX: 'auto' }}>
+            <div className="card-body" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '60vh' }}>
               <table className="data-table">
                 <thead>
                   <tr>
@@ -365,7 +399,7 @@ export default function ImportPage() {
                   {mappedRows.map((row, ri) => (
                     <tr key={ri}>
                       <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{ri + 1}</td>
-                      {SYSTEM_FIELDS.map(f => {
+                      {SYSTEM_FIELDS.map((f, fi) => {
                         const cellErrors = getCellErrors(validationErrors, ri, f.key);
                         const hasError = cellErrors.some(e => e.level === 'error');
                         const hasWarning = cellErrors.some(e => e.level === 'warning');
@@ -387,6 +421,7 @@ export default function ImportPage() {
                                   autoFocus
                                   onChange={e => handleCellEdit(ri, f.key, e.target.value)}
                                   onBlur={() => setEditingCell(null)}
+                                  onKeyDown={e => handleCellKeyDown(e, ri, fi)}
                                 >
                                   <option value="">—</option>
                                   {TEMP_ZONE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
@@ -399,6 +434,7 @@ export default function ImportPage() {
                                   autoFocus
                                   onChange={e => handleCellEdit(ri, f.key, e.target.value)}
                                   onBlur={() => setEditingCell(null)}
+                                  onKeyDown={e => handleCellKeyDown(e, ri, fi)}
                                 />
                               )
                             ) : (
